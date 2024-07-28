@@ -3,6 +3,10 @@ import pandas as pd
 import fasttext
 import io
 from PIL import Image
+import tempfile
+import requests
+import os
+from joblib import Memory
 
 # Loading Image using PIL
 im = Image.open('icon.png')
@@ -10,8 +14,36 @@ im = Image.open('icon.png')
 # Adding Image to web app
 st.set_page_config(page_title="SpamScanner", page_icon = im, layout="wide")
 
-# Load the model from the file
-model = fasttext.load_model('supervised_model.bin')
+
+# Define cache directory
+cache_dir = 'cache'
+memory = Memory(cache_dir, verbose=0)
+
+# URL of the model
+model_url = 'https://drive.google.com/uc?export=download&id=1L74mr2nrD9eHW6EgwO2A1ZlH0wjoL_dH'
+cache_file = os.path.join(cache_dir, 'cached_model.bin')
+
+@memory.cache
+def download_model(url, file_path):
+    """Downloads the model from the given URL and saves it to the specified file path."""
+    print("Downloading model...")
+    response = requests.get(url, stream=True)
+    if response.status_code == 200:
+        with open(file_path, 'wb') as f:
+            f.write(response.content)
+        print("Model downloaded and cached.")
+    else:
+        print("Failed to download model.")
+
+def load_model():
+    """Loads the fasttext model, downloading it if not already cached."""
+    if not os.path.exists(cache_file):
+        download_model(model_url, cache_file)
+    return fasttext.load_model(cache_file)
+
+
+# # Load the model from the file
+# model = fasttext.load_model('supervised_model.bin')
 
 # Define the predict_spam function
 def predict_spam(message):
@@ -241,6 +273,8 @@ def main():
             st.session_state.page = 'app'    
               
 if __name__ == "__main__":
+    model = load_model()
     main()
+    
 
 
